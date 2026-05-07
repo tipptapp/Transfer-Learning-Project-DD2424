@@ -7,9 +7,7 @@ from torchvision.models import resnet34, ResNet34_Weights
 
 # Make src/ importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from src.data import get_dataloaders 
-
-NUM_CLASSES = 37
+from src.data import get_dataloaders
 
 
 def get_device():
@@ -36,23 +34,23 @@ def main():
     device = get_device()
     print(f"Device: {device}")
 
-    # 37 breed labels
+    # Cat/dog labels
     train_loader, val_loader, test_loader, _ = get_dataloaders(
-        task="breed", batch_size=32, image_size=224
+        task="binary", batch_size=32, image_size=224
     )
 
-    # Pretrained ResNet34, freeze everything, swap in a 37-class head
+    # Pretrained ResNet34, freeze everything, swap in a 2-class head
     model = resnet34(weights=ResNet34_Weights.IMAGENET1K_V1)
     for p in model.parameters():
         p.requires_grad = False
-    model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES)
+    model.fc = nn.Linear(model.fc.in_features, 2)
     model = model.to(device)
 
     # Only the new fc layer is trainable
     optim = torch.optim.Adam(model.fc.parameters(), lr=1e-3)
     loss_fn = nn.CrossEntropyLoss()
 
-    epochs = 10
+    epochs = 5
     for epoch in range(1, epochs + 1):
         model.train()
         running, n = 0.0, 0
@@ -68,7 +66,7 @@ def main():
 
         val_acc = evaluate(model, val_loader, device)
         test_acc = evaluate(model, test_loader, device)
-        print(f"Epoch {epoch:2d}: train_loss={train_loss:.4f}  val_acc={val_acc:.4f}  test_acc={test_acc:.4f}")
+        print(f"Epoch {epoch}: train_loss={train_loss:.4f}  val_acc={val_acc:.4f}  test_acc={test_acc:.4f}")
 
 
 if __name__ == "__main__":
