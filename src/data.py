@@ -1,17 +1,26 @@
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
+# ImageNet stats, pretrained ConvNets expect inputs normalized
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
+
+
 def get_transforms(image_size=224):
+    normalize = transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD)
+
     train_transform = transforms.Compose([
         transforms.Resize((image_size, image_size)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        normalize,
     ])
-    
+
     test_transform = transforms.Compose([
         transforms.Resize((image_size, image_size)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        normalize,
     ])
-    
+
     return train_transform, test_transform
 
 def get_dataloaders(task="breed", batch_size=32, image_size=224, data_root="data"):
