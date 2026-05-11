@@ -3,6 +3,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
+from sklearn.metrics import f1_score
 from torchvision.models import resnet34, ResNet34_Weights
 
 # Make src/ importable
@@ -23,13 +24,16 @@ def get_device():
 @torch.no_grad()
 def evaluate(model, loader, device):
     model.eval()
-    correct = total = 0
+    all_preds, all_labels = [], []
     for x, y in loader:
-        x, y = x.to(device), y.to(device)
-        pred = model(x).argmax(dim=1)
-        correct += (pred == y).sum().item()
-        total += y.size(0)
-    return correct / total
+        x = x.to(device)
+        all_preds.append(model(x).argmax(dim=1).cpu())
+        all_labels.append(y)
+    preds = torch.cat(all_preds)
+    labels = torch.cat(all_labels)
+    acc = (preds == labels).float().mean().item()
+    f1 = f1_score(labels.numpy(), preds.numpy(), average="macro")
+    return acc, f1
 
 
 def main():
@@ -66,9 +70,13 @@ def main():
             n += x.size(0)
         train_loss = running / n
 
-        val_acc = evaluate(model, val_loader, device)
-        test_acc = evaluate(model, test_loader, device)
-        print(f"Epoch {epoch:2d}: train_loss={train_loss:.4f}  val_acc={val_acc:.4f}  test_acc={test_acc:.4f}")
+        val_acc, val_f1 = evaluate(model, val_loader, device)
+        test_acc, test_f1 = evaluate(model, test_loader, device)
+        print(f"Epoch {epoch:2d}: train_loss={train_loss:.4f}  val_acc={val_acc:.4f}  val_f1={val_f1:.4f}  test_acc={test_acc:.4f}  test_f1={test_f1:.4f}")
+
+    val_acc, val_f1 = evaluate(model, val_loader, device)
+    test_acc, test_f1 = evaluate(model, test_loader, device)
+    print(f"Final: val_acc={val_acc:.4f} val_f1={val_f1:.4f}  test_acc={test_acc:.4f} test_f1={test_f1:.4f}")
 
 
 if __name__ == "__main__":
