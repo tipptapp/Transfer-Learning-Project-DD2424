@@ -12,7 +12,9 @@ Run:
 """
 
 import argparse
+import copy
 import sys
+import time
 from pathlib import Path
 
 import torch
@@ -108,7 +110,17 @@ def main():
     optim = torch.optim.Adam(trainable_params, lr=args.lr)
     loss_fn = nn.CrossEntropyLoss()
 
+    best_val_acc = -1.0
+    best_epoch = -1
+    best_state = None
+
+    ckpt_dir = Path(__file__).resolve().parent.parent / "results" / "partialtuning"
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    ckpt_path = ckpt_dir / f"best_l{args.l}.pt"
+
+    train_start = time.time()
     for epoch in range(1, args.epochs + 1):
+        epoch_start = time.time()
         model.train()
         running, n = 0.0, 0
         for x, y in train_loader:
@@ -122,12 +134,30 @@ def main():
         train_loss = running / n
 
         val_acc, val_f1 = evaluate(model, val_loader, device)
+        epoch_time = time.time() - epoch_start
         print(f"Epoch {epoch:2d}: train_loss={train_loss:.4f}  "
-              f"val_acc={val_acc:.4f}  val_f1={val_f1:.4f}  ")
+              f"val_acc={val_acc:.4f}  val_f1={val_f1:.4f}  "
+              f"time={epoch_time:.1f}s")
+
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+            best_epoch = epoch
+            best_state = copy.deepcopy(model.state_dict())
+            torch.save(best_state, ckpt_path)
+
+    total_time = time.time() - train_start
+    print(f"Total training time: {total_time:.1f}s "
+          f"({total_time / 60:.2f} min) for {args.epochs} epochs")
+    print(f"Best val_acc={best_val_acc:.4f} at epoch {best_epoch}; "
+          f"best model saved to {ckpt_path}")
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
 
     val_acc, val_f1 = evaluate(model, val_loader, device)
     test_acc, test_f1 = evaluate(model, test_loader, device)
-    print(f"Final (l={args.l}): val_acc={val_acc:.4f} val_f1={val_f1:.4f}  "
+    print(f"Final best model (l={args.l}, epoch {best_epoch}): "
+          f"val_acc={val_acc:.4f} val_f1={val_f1:.4f}  "
           f"test_acc={test_acc:.4f} test_f1={test_f1:.4f}")
 
 
