@@ -122,10 +122,8 @@ def main():
         train_loss = running / n
 
         val_acc, val_f1 = evaluate(model, val_loader, device)
-        test_acc, test_f1 = evaluate(model, test_loader, device)
         print(f"Epoch {epoch:2d}: train_loss={train_loss:.4f}  "
-              f"val_acc={val_acc:.4f}  val_f1={val_f1:.4f}  "
-              f"test_acc={test_acc:.4f}  test_f1={test_f1:.4f}")
+              f"val_acc={val_acc:.4f}  val_f1={val_f1:.4f}  ")
 
     val_acc, val_f1 = evaluate(model, val_loader, device)
     test_acc, test_f1 = evaluate(model, test_loader, device)
