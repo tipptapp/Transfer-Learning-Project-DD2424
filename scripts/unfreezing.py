@@ -12,16 +12,18 @@ from linprobing import get_device, evaluate, NUM_CLASSES
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.data import get_dataloaders
 
-def unfreeze_layers(layers_to_unfreeze, model):
-    """Unfreezes the last `layers_to_unfreeze` layers."""
-    frozen_layers = 0
-    for child in model.children():
-        if frozen_layers < layers_to_unfreeze:
-            frozen_layers += 1
-            continue
-        else:
-            for param in child.parameters():
-                param.requires_grad = True
+def unfreeze_layer(model, unfreeze_layer):
+    layers = [model.layer1, model.layer2, model.layer3, model.layer4]
+    layer = layers[unfreeze_layer]
+    for param in layer.parameters():
+        param.requires_grad = True
+
+def freeze_layers(model):
+    layers = [model.layer1, model.layer2, model.layer3, model.layer4]
+    for layer in layers:
+        for param in layer.parameters():
+            param.requires_grad = False
+
 
 
 def main():
@@ -33,40 +35,25 @@ def main():
     )
 
     model = resnet34(weights=ResNet34_Weights.IMAGENET1K_V1)
-    model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES)
+    model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES) # change output layers from 1k to 37
     model = model.to(device)
 
     loss_fn = nn.CrossEntropyLoss()
+    freeze_layers(model)
 
     total_start = time.time()
     epoch_global = 0
 
-    num_layers = 0
-    # https://discuss.pytorch.org/t/how-the-pytorch-freeze-network-in-some-layers-only-the-rest-of-the-training/7088/4
-    for layer_idx, child in enumerate(start=1, iterable=model.children()): # model.children() which returns it’s layers
-        for param in child.parameters():
-            param.requires_grad = False
-        print("Layer frozen ", layer_idx)
-        num_layers += 1
-
-    for param in model.fc.parameters():
-        param.requires_grad = True
-
-    print("Number of layers: ", num_layers)
-
     # Gradual unfreezing
     epochs_per_stage = 3
-    for i in range(1, num_layers + 1):
-        # Each stage starts from a fully-frozen model
-        for child in model.children():
-            for param in child.parameters():
-                param.requires_grad = False
-        unfreeze_layers(num_layers - i, model)
+    for i in range(4, -1, -1):
+        if i != 4:
+            unfreeze_layer(model, i)
 
-        # pick up new unfrozen layers
+        lr = 1e-3 if i == 4 else 1e-4
         optim = torch.optim.Adam(
             (p for p in model.parameters() if p.requires_grad),
-            lr=1e-3,
+            lr=lr,
         )
 
         stage_start = time.time()
