@@ -6,11 +6,12 @@ import torch
 import torch.nn as nn
 from torchvision.models import resnet34, ResNet34_Weights
 
-from linprobing import get_device, evaluate, NUM_CLASSES
+from linprobing import get_device, NUM_CLASSES
 
 # Make src/ importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.data import get_dataloaders
+from src.evaluation import evaluate
 
 def unfreeze_layer(model, unfreeze_layer):
     layers = [model.layer1, model.layer2, model.layer3, model.layer4]
@@ -25,12 +26,11 @@ def freeze_layers(model):
             param.requires_grad = False
 
 
-
 def main():
     device = get_device()
     print(f"Device: {device}")
 
-    train_loader, val_loader, test_loader, _ = get_dataloaders(
+    train_loader, val_loader, test_loader, _, _ = get_dataloaders(
         task="breed", batch_size=32, image_size=224
     )
 

@@ -25,6 +25,7 @@ from torchvision.models import resnet34, ResNet34_Weights
 # Make src/ importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.data import get_dataloaders
+from src.evaluation import evaluate
 
 NUM_CLASSES = 37
 
@@ -40,21 +41,6 @@ def get_device():
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
-
-
-@torch.no_grad()
-def evaluate(model, loader, device):
-    model.eval()
-    all_preds, all_labels = [], []
-    for x, y in loader:
-        x = x.to(device)
-        all_preds.append(model(x).argmax(dim=1).cpu())
-        all_labels.append(y)
-    preds = torch.cat(all_preds)
-    labels = torch.cat(all_labels)
-    acc = (preds == labels).float().mean().item()
-    f1 = f1_score(labels.numpy(), preds.numpy(), average="macro")
-    return acc, f1
 
 
 def build_model(l: int, device):
@@ -99,7 +85,7 @@ def main():
     print(f"Device: {device}")
 
     # 37 breed labels
-    train_loader, val_loader, test_loader, _ = get_dataloaders(
+    train_loader, val_loader, test_loader, _, _ = get_dataloaders(
         task="breed", batch_size=args.batch_size, image_size=224
     )
 
